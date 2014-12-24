@@ -5,7 +5,7 @@ SublimeTextを参考にそれっぽく絞り込めるフィルタに置き換え
 ついでにプレビュー対応しました。  
 
 
-![sample](./img/screen.gif "")
+![sample](https://github.com/toshi-saito/fuzzy-finder/raw/master/img/screen.gif "")
 
 
 キーバインドは変更していないので、atom/fuzzy-finderをDisableにしてご利用ください。
