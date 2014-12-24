@@ -1,7 +1,8 @@
 path = require 'path'
 {Point} = require 'atom'
-{$$, SelectListView} = require 'atom-space-pen-views'
+{$, $$, SelectListView} = require 'atom-space-pen-views'
 fs = require 'fs-plus'
+filter = require './path-filter'
 
 module.exports =
 class FuzzyFinderView extends SelectListView
@@ -31,7 +32,7 @@ class FuzzyFinderView extends SelectListView
     @cancel()
     @panel?.destroy()
 
-  viewForItem: ({filePath, projectRelativePath}) ->
+  viewForItem: ({filePath, projectRelativePath, result}) ->
     $$ ->
       @li class: 'two-lines', =>
         [repo] = atom.project.getRepositories()
@@ -59,7 +60,12 @@ class FuzzyFinderView extends SelectListView
         fileBasename = path.basename(filePath)
 
         @div fileBasename, class: "primary-line file icon #{typeClass}", 'data-name': fileBasename, 'data-path': projectRelativePath
-        @div projectRelativePath, class: 'secondary-line path no-icon'
+        if result
+          @div class: 'secondary-line path no-icon', =>
+            @raw result.match
+          @div parseInt(result.score || 0, 10)
+        else
+          @div projectRelativePath, class: 'secondary-line path no-icon'
 
   openPath: (filePath, lineNumber) ->
     if filePath
@@ -96,7 +102,65 @@ class FuzzyFinderView extends SelectListView
       @list.empty()
       @setError('Jump to line in active editor')
     else
-      super
+      return unless @items?
+
+      filterQuery = @getFilterQuery()
+      if filterQuery.length
+        filteredItems = filter(filterQuery, @items,
+          {
+            key: @getFilterKey(),
+            pre: "<b>",
+            post: "</b>"
+          }).map (v) ->
+          res = v.original
+          res.result = v.result
+          res
+      else
+        filteredItems = @items
+
+      @list.empty()
+      if filteredItems.length
+        @setError(null)
+
+        for i in [0...Math.min(filteredItems.length, @maxItems)]
+          item = filteredItems[i]
+          itemView = $(@viewForItem(item))
+          itemView.data('select-list-item', item)
+          @list.append(itemView)
+
+        @selectItemView(@list.find('li:first'))
+      else
+        @setError(@getEmptyMessage(@items.length, filteredItems.length))
+
+  selectItemView: (view) ->
+    super(view)
+
+    {filePath} = @getSelectedItem()
+    clearTimeout @previewTimeout if @previewTimeout
+    self = this
+    @previewTimeout = setTimeout ->
+      self.openPreview(filePath)
+    , 50
+
+  openPreview: (filePath) ->
+    @closePreview()
+
+    pane = atom.workspace.activePane
+    item = pane.itemForUri filePath
+    if item
+      pane.activateItem(item)
+      return
+
+    e = atom.workspace.open filePath, activatePane: false
+    @previewPath = filePath
+
+  closePreview: ->
+    pane = atom.workspace.activePane
+    if @previewPath
+      item = pane.itemForUri @previewPath
+      pane.destroyItem item
+      @previewPath = null
+
 
   confirmSelection: ->
     item = @getSelectedItem()
@@ -160,6 +224,7 @@ class FuzzyFinderView extends SelectListView
     @focusFilterEditor()
 
   hide: ->
+    @closePreview()
     @panel?.hide()
 
   cancelled: ->
