@@ -151,6 +151,9 @@ class FuzzyFinderView extends SelectListView
       pane.activateItem(item)
       return
 
+    item = opener(atom.project.resolve(filePath), {}) for opener in atom.workspace.getOpeners() when !item
+    return if item;
+
     e = atom.workspace.open filePath, activatePane: false
     @previewPath = filePath
 
