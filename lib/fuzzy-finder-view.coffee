@@ -135,12 +135,14 @@ class FuzzyFinderView extends SelectListView
   selectItemView: (view) ->
     super(view)
 
+    return if !atom.config.get('fuzzy-finder-plus.enablePreview')
+
     {filePath} = @getSelectedItem()
     clearTimeout @previewTimeout if @previewTimeout
     self = this
     @previewTimeout = setTimeout ->
       self.openPreview(filePath)
-    , 50
+    , 200
 
   openPreview: (filePath) ->
     @closePreview()
